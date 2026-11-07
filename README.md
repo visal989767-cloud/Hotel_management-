@@ -45,9 +45,10 @@ git push -u origin main
 
 ## Deploy to Vercel
 
-Vercel's Container runtime can run the Laravel app using the included `Dockerfile`.
-In the Vercel project settings, select the **Container** framework preset, then
-deploy the repository root (the directory containing `composer.json`).
+Vercel's Container runtime can run the Laravel app using the included
+`Dockerfile.vercel`, which selects the Container preset instead of Vite's static
+output detection. Deploy the repository root (the directory containing
+`composer.json`).
 
 Before deploying, create an external MySQL database and set these Production
 environment variables in Vercel:
