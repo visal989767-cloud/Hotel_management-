@@ -42,3 +42,28 @@ git branch -M main
 git remote add origin https://github.com/<your-username>/hotel-management.git
 git push -u origin main
 ```
+
+## Deploy to Vercel
+
+Vercel's Container runtime can run the Laravel app using the included `Dockerfile`.
+In the Vercel project settings, select the **Container** framework preset, then
+deploy the repository root (the directory containing `composer.json`).
+
+Before deploying, create an external MySQL database and set these Production
+environment variables in Vercel:
+
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_KEY` (generate with `php artisan key:generate --show`; keep it secret)
+- `APP_URL` (the production Vercel URL)
+- `LOG_CHANNEL=stderr` (send Laravel logs to Vercel's runtime logs)
+- `DB_CONNECTION=mysql`
+- `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`
+
+Run `php artisan migrate --force` against that database before serving traffic.
+Do not run migrations as part of container startup; Vercel may start multiple
+instances. `SESSION_DRIVER`, `CACHE_STORE`, and `QUEUE_CONNECTION` default to
+database, so keep the Laravel database migrations applied. Do not run the demo
+database seeder on a public production deployment; it creates a known demo
+admin account. The container's local filesystem is ephemeral; use external
+object storage if the app later needs persistent user-uploaded files.
