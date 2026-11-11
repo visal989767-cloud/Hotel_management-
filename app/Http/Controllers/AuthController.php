@@ -31,6 +31,7 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+            $request->session()->flash('show_login_loader', true);
 
             return redirect()->intended(route('dashboard'));
         }

@@ -26,12 +26,35 @@ class BookingController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('bookings.index', ['bookings' => $bookings, 'statuses' => self::STATUSES]);
+        $rooms = Room::with('roomType')->orderBy('room_number')->get();
+        $guests = Guest::orderBy('guest_name')->get();
+        $totalBookings = Booking::count();
+        $checkedInCount = Booking::where('status', 'checked_in')->count();
+        $bookedCount = Booking::where('status', 'booked')->count();
+        $totalRevenue = Booking::where('status', '!=', 'cancelled')->sum('total_price');
+
+        return view('bookings.index', [
+            'bookings' => $bookings,
+            'rooms' => $rooms,
+            'guests' => $guests,
+            'totalBookings' => $totalBookings,
+            'checkedInCount' => $checkedInCount,
+            'bookedCount' => $bookedCount,
+            'totalRevenue' => $totalRevenue,
+            'statuses' => self::STATUSES,
+        ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('bookings.form', $this->formData(new Booking(['status' => 'booked'])));
+        $validated = $request->validate([
+            'room_id' => ['sometimes', 'integer', 'exists:rooms,room_id'],
+        ]);
+
+        return view('bookings.form', $this->formData(new Booking([
+            'status' => 'booked',
+            'room_id' => $validated['room_id'] ?? null,
+        ])));
     }
 
     public function store(Request $request)

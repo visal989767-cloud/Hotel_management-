@@ -47,6 +47,9 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        $this->call(AdditionalRoomsSeeder::class);
+        $this->call(AdditionalRoomTypesSeeder::class);
+
         $guests = [
             ['Kong Sopheak', 'kongsopheak@gmail.com', '012345678', 'Male'],
             ['Ly Chhailin', 'lin@gmail.com', '098765432', 'Female'],

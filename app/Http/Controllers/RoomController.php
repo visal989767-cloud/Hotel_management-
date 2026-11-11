@@ -36,8 +36,13 @@ class RoomController extends Controller
 
         return view('rooms.index', [
             'rooms' => $rooms,
+            'roomImages' => config('room_images'),
             'roomTypes' => RoomType::orderBy('type_name')->get(),
             'statuses' => self::STATUSES,
+            'totalRoomCount' => Room::count(),
+            'availableRoomCount' => Room::where('status', 'available')->count(),
+            'occupiedRoomCount' => Room::where('status', 'occupied')->count(),
+            'maintenanceRoomCount' => Room::where('status', 'maintenance')->count(),
         ]);
     }
 
@@ -45,6 +50,7 @@ class RoomController extends Controller
     {
         return view('rooms.form', [
             'room' => new Room(['status' => 'available', 'floor' => 1]),
+            'roomImages' => config('room_images'),
             'roomTypes' => RoomType::orderBy('type_name')->get(),
             'statuses' => self::STATUSES,
         ]);
@@ -61,6 +67,7 @@ class RoomController extends Controller
     {
         return view('rooms.form', [
             'room' => $room,
+            'roomImages' => config('room_images'),
             'roomTypes' => RoomType::orderBy('type_name')->get(),
             'statuses' => self::STATUSES,
         ]);
@@ -92,6 +99,7 @@ class RoomController extends Controller
             'status' => ['required', 'in:'.implode(',', self::STATUSES)],
             'room_type_id' => ['required', 'exists:room_types,room_type_id'],
             'description' => ['nullable', 'string'],
+            'image_key' => ['required', 'integer', 'between:1,'.count(config('room_images'))],
         ]);
     }
 }

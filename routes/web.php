@@ -19,6 +19,8 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+    Route::post('/settings', [DashboardController::class, 'settingsUpdate'])->name('settings.update');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::resource('room-types', RoomTypeController::class)

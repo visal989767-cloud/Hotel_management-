@@ -10,7 +10,7 @@ class Room extends Model
 {
     protected $primaryKey = 'room_id';
 
-    protected $fillable = ['room_number', 'floor', 'status', 'description', 'room_type_id'];
+    protected $fillable = ['room_number', 'floor', 'status', 'description', 'image_key', 'room_type_id'];
 
     public function roomType(): BelongsTo
     {

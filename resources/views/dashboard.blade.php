@@ -3,712 +3,741 @@
 @section('content')
 @php
     $occupancy = $rooms > 0 ? round(($occupied / $rooms) * 100) : 0;
-    $stats = [
-        ['Room types', $roomTypes],
-        ['Total rooms', $rooms],
-        ['Available', $available],
-        ['Occupied', $occupied],
-        ['Guests', $guests],
-        ['Bookings', $bookings],
+    $daysInMonth = $monthStart->daysInMonth;
+    $calendarOffset = $monthStart->dayOfWeek;
+    $bookingDays = $calendarBookings->map(fn ($booking) => $booking->check_in->day)->all();
+    $roomTypeImages = [
+        'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=640&q=80',
+        'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=640&q=80',
+        'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=640&q=80',
+        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=640&q=80',
     ];
 @endphp
 
 <style>
-    /* ---------- Navbar theme (overrides Bootstrap blue) ---------- */
-    body { background: #030608 !important; font-family: 'Outfit', sans-serif; color: #f5f2ed; }
+    @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap');
 
-    .navbar {
-        background: #0f2429 !important;
-        border-bottom: 2px solid #b08d57;
-        padding: .8rem 0;
-        box-shadow: 0 10px 30px -18px rgba(15,36,41,.8);
-    }
-
-    .navbar .navbar-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: .6rem;
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.7rem;
-        font-weight: 600;
-        letter-spacing: .02em;
-        color: #fff !important;
-    }
-
-    .navbar .navbar-brand .bi,
-    .navbar .navbar-brand i { color: #b08d57; }
-
-    .navbar .nav-link {
-        position: relative;
-        padding: .5rem .85rem !important;
-        font-weight: 500;
-        color: rgba(255,255,255,.68) !important;
-        transition: color .2s ease;
-    }
-
-    .navbar .nav-link::after {
-        content: "";
-        position: absolute;
-        left: .85rem;
-        right: .85rem;
-        bottom: .1rem;
-        height: 2px;
-        background: #b08d57;
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform .3s cubic-bezier(.22,.8,.24,1);
-    }
-
-    .navbar .nav-link:hover,
-    .navbar .nav-link:focus-visible,
-    .navbar .nav-link.active { color: #fff !important; }
-
-    .navbar .nav-link:hover::after,
-    .navbar .nav-link:focus-visible::after,
-    .navbar .nav-link.active::after { transform: scaleX(1); }
-
-    .navbar .btn {
-        background: transparent;
-        border: 1px solid rgba(255,255,255,.35);
-        color: #fff;
-        font-weight: 500;
-        border-radius: 6px;
-        transition: background .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
-    }
-
-    .navbar .btn:hover,
-    .navbar .btn:focus-visible {
-        background: #b08d57;
-        border-color: #b08d57;
-        color: #0f2429;
-        transform: translateY(-1px);
-    }
-
-    .navbar .navbar-toggler { border-color: rgba(255,255,255,.35); }
-    .navbar .navbar-toggler:focus { box-shadow: 0 0 0 .2rem rgba(176,141,87,.35); }
-</style>
-
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Italiana&family=Outfit:wght@300;400;600&display=swap');
-
-    .dash {
-        --pine: #17333a;
-        --pine-deep: #0f2429;
-        --brass: #b08d57;
-        --brass-dark: #8f7142;
-        --ivory: #fbfaf8;
-        --ink: #1f2a2e;
-        --muted: #6b7b7f;
-        --line: #dfe5e4;
-        --ease: cubic-bezier(.22, .8, .24, 1);
-        font-family: 'Figtree', system-ui, sans-serif;
-        color: var(--ink);
-    }
-
-    @keyframes dashRise {
-        from { opacity: 0; transform: translateY(18px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes dashGrow {
-        from { width: 0; }
-        to   { width: 56px; }
-    }
-    @keyframes dashBar {
-        from { transform: scaleX(0); }
-        to   { transform: scaleX(1); }
-    }
-
-    .dash .reveal {
-        opacity: 0;
-        animation: dashRise 1.2s var(--ease) forwards;
-        animation-delay: calc(var(--i, 0) * 180ms + 200ms);
-    }
-
-    /* ---------- Hero header ---------- */
-    @keyframes heroFade {
-        0%   { opacity: 0; }
-        8%   { opacity: 1; }
-        33%  { opacity: 1; }
-        41%  { opacity: 0; }
-        100% { opacity: 0; }
-    }
-    @keyframes heroZoom {
-        from { transform: scale(1) translate3d(0, 0, 0); }
-        to   { transform: scale(1.14) translate3d(-1.5%, -1%, 0); }
-    }
-    @keyframes heroDot {
-        0%   { transform: scaleX(0); }
-        33%  { transform: scaleX(1); }
-        33.01%, 100% { transform: scaleX(0); }
-    }
-
-    .dash-hero {
+    body.cinematic-dashboard {
+        --bs-body-bg: #071114;
+        --bs-body-color: #e7e9e7;
         position: relative;
         isolation: isolate;
-        overflow: hidden;
-        border-radius: 22px;
-        margin-bottom: 1.75rem;
-        padding: 2.25rem 2.5rem 1.75rem;
-        min-height: 320px;
-        color: #fff;
-        background: var(--pine);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 2rem;
-        box-shadow: 0 24px 48px -28px rgba(15,36,41,.65);
+        background: #071114 !important;
+        color: #e7e9e7;
+        font-family: 'Figtree', system-ui, sans-serif;
     }
 
-    .hero-slides { position: absolute; inset: 0; z-index: -2; background: var(--pine); }
-
-    .hero-slide {
-        position: absolute;
-        inset: 0;
-        background-size: cover;
-        background-position: center;
-        opacity: 0;
-        will-change: opacity, transform;
-        animation: heroFade 21s ease-in-out infinite, heroZoom 21s linear infinite;
-    }
-    .hero-slide:nth-child(1) { background-image: url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1800&q=80'); animation-delay: 0s; }
-    .hero-slide:nth-child(2) { background-image: url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1800&q=80'); animation-delay: 7s; }
-    .hero-slide:nth-child(3) { background-image: url('https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1800&q=80'); animation-delay: 14s; }
-
-    .dash-hero::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        background:
-            linear-gradient(90deg, rgba(15,36,41,.88) 0%, rgba(15,36,41,.55) 55%, rgba(15,36,41,.35) 100%),
-            linear-gradient(180deg, rgba(15,36,41,.1) 0%, rgba(15,36,41,.7) 100%);
-    }
-
-    .hero-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .hero-date { font-size: .9rem; color: rgba(255,255,255,.8); margin-bottom: .75rem; }
-
-    .dash-rule {
-        height: 2px;
-        width: 56px;
-        background: var(--brass);
-        margin-bottom: 1.1rem;
-        animation: dashGrow 1.6s var(--ease) .6s both;
-    }
-
-    .hero-title {
-        font-family: 'Cormorant Garamond', serif;
-        font-weight: 500;
-        font-size: clamp(2.2rem, 3.6vw, 3.3rem);
-        line-height: 1.08;
-        margin: 0 0 .75rem;
-        color: #fff;
-    }
-
-    .hero-text { max-width: 44ch; margin: 0; color: rgba(255,255,255,.82); }
-
-    .hero-actions { display: flex; gap: .65rem; flex-wrap: wrap; }
-
-    .hero-btn {
-        position: relative;
-        overflow: hidden;
-        display: inline-block;
-        padding: .7rem 1.25rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: .95rem;
-        text-decoration: none;
-        transition: transform .2s var(--ease), box-shadow .2s ease, background .2s ease, border-color .2s ease;
-    }
-
-    .hero-btn::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -75%;
-        width: 50%;
-        height: 100%;
-        background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent);
-        transform: skewX(-20deg);
-    }
-
-    .hero-btn:hover, .hero-btn:focus-visible { transform: translateY(-2px); }
-    .hero-btn:hover::after, .hero-btn:focus-visible::after { left: 130%; transition: left .7s var(--ease); }
-    .hero-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-
-    .hero-btn-primary {
-        background: var(--brass);
-        border: 1px solid var(--brass);
-        color: var(--pine-deep);
-    }
-    .hero-btn-primary:hover, .hero-btn-primary:focus-visible {
-        background: #c19d66;
-        border-color: #c19d66;
-        color: var(--pine-deep);
-        box-shadow: 0 10px 22px -10px rgba(0,0,0,.6);
-    }
-
-    .hero-btn-ghost {
-        background: rgba(255,255,255,.1);
-        border: 1px solid rgba(255,255,255,.35);
-        color: #fff;
-        backdrop-filter: blur(6px);
-    }
-    .hero-btn-ghost:hover, .hero-btn-ghost:focus-visible {
-        background: rgba(255,255,255,.2);
-        border-color: rgba(255,255,255,.6);
-        color: #fff;
-    }
-
-    .hero-bottom {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        gap: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .hero-chips { display: flex; gap: .75rem; flex-wrap: wrap; }
-
-    .hero-chip {
-        min-width: 130px;
-        padding: .75rem 1.1rem;
-        border-radius: 14px;
-        background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.22);
-        backdrop-filter: blur(8px);
-        display: flex;
-        flex-direction: column;
-    }
-    .hero-chip strong {
-        font-family: 'Cormorant Garamond', serif;
-        font-weight: 600;
-        font-size: 1.8rem;
-        line-height: 1.1;
-    }
-    .hero-chip span { font-size: .85rem; color: rgba(255,255,255,.8); }
-
-    .hero-dots { display: flex; gap: .5rem; }
-    .hero-dots span {
-        position: relative;
-        height: 3px;
-        width: 28px;
-        border-radius: 2px;
-        background: rgba(255,255,255,.3);
-        overflow: hidden;
-    }
-    .hero-dots span::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: var(--brass);
-        transform: scaleX(0);
-        transform-origin: left;
-        animation: heroDot 21s linear infinite;
-    }
-    .hero-dots span:nth-child(2)::after { animation-delay: 7s; }
-    .hero-dots span:nth-child(3)::after { animation-delay: 14s; }
-
-    /* ---------- Revenue panel (echoes the login photo panel) ---------- */
-    .revenue-panel {
-        position: relative;
-        height: 100%;
-        min-height: 260px;
-        padding: 2rem 2.25rem;
-        border-radius: 18px;
-        color: #fff;
-        background:
-            linear-gradient(180deg, rgba(15,36,41,.78) 0%, rgba(15,36,41,.9) 100%),
-            url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80') center / cover;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        overflow: hidden;
-    }
-
-    .revenue-panel .label { color: rgba(255,255,255,.75); font-size: .9rem; }
-
-    .revenue-panel .amount {
-        font-family: 'Cormorant Garamond', serif;
-        font-weight: 500;
-        font-size: clamp(2.6rem, 4vw, 3.6rem);
-        line-height: 1.05;
-        margin: .35rem 0 0;
-    }
-
-    .occupancy-head {
-        display: flex;
-        justify-content: space-between;
-        font-size: .9rem;
-        color: rgba(255,255,255,.85);
-        margin-bottom: .5rem;
-    }
-
-    .occupancy-track {
-        height: 3px;
-        border-radius: 2px;
-        background: rgba(255,255,255,.28);
-        overflow: hidden;
-    }
-
-    .occupancy-fill {
-        height: 100%;
-        background: var(--brass);
-        transform-origin: left;
-        animation: dashBar 1.8s var(--ease) 1s both;
-    }
-
-    /* ---------- Stat grid ---------- */
-    .stat-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        height: 100%;
-        background: #fff;
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        overflow: hidden;
-    }
-
-    .stat-cell {
-        padding: 1.5rem 1.5rem;
-        border-right: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        transition: background .25s ease;
-    }
-
-    .stat-cell:nth-child(3n) { border-right: 0; }
-    .stat-cell:nth-child(n+4) { border-bottom: 0; }
-    .stat-cell:hover { background: var(--ivory); }
-
-    .stat-value {
-        font-family: 'Cormorant Garamond', serif;
-        font-weight: 600;
-        font-size: 2.4rem;
-        line-height: 1;
-        color: var(--pine);
-    }
-
-    .stat-label { color: var(--muted); font-size: .9rem; margin-top: .4rem; }
-
-    /* ---------- Bookings table ---------- */
-    .panel-card {
-        background: #fff;
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        overflow: hidden;
-    }
-
-    .panel-card-head {
-        padding: 1.1rem 1.5rem;
-        border-bottom: 1px solid var(--line);
-        font-family: 'Cormorant Garamond', serif;
-        font-weight: 600;
-        font-size: 1.5rem;
-        color: var(--pine);
-    }
-
-    .dash .table { margin-bottom: 0; --bs-table-hover-bg: var(--ivory); }
-
-    .dash .table thead th {
-        font-weight: 500;
-        font-size: .85rem;
-        color: var(--muted);
-        background: var(--ivory);
-        border-bottom: 1px solid var(--line);
-        padding: .8rem 1.5rem;
-        white-space: nowrap;
-    }
-
-    .dash .table tbody td {
-        padding: .95rem 1.5rem;
-        border-color: var(--line);
-        color: var(--ink);
-    }
-
-    .dash .table tbody tr:last-child td { border-bottom: 0; }
-
-    .booking-id { font-weight: 600; color: var(--brass-dark); }
-
-    .empty-state { padding: 3rem 1rem; text-align: center; color: var(--muted); }
-
-    /* ---------- Responsive ---------- */
-    @media (max-width: 767.98px) {
-        .stat-grid { grid-template-columns: repeat(2, 1fr); }
-        .stat-cell:nth-child(3n) { border-right: 1px solid var(--line); }
-        .stat-cell:nth-child(2n) { border-right: 0; }
-        .stat-cell:nth-child(n+4) { border-bottom: 1px solid var(--line); }
-        .stat-cell:nth-child(n+5) { border-bottom: 0; }
-        .dash-hero { padding: 1.75rem 1.5rem 1.5rem; min-height: 0; }
-        .hero-chip { min-width: 0; flex: 1 1 100px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .dash *, .dash *::before, .dash *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: .01ms !important;
-        }
-        .dash .reveal { opacity: 1; }
-        .dash .hero-slide:nth-child(1) { opacity: 1; }
-    }
-
-    .cinematic-dashboard {
-        --bs-body-color: #f5f2ed;
-        --bs-body-bg: #030608;
-        --bs-border-color: rgba(224, 232, 236, .14);
-        background: #030608 !important;
-    }
-
-    .cinematic-dashboard::before {
+    body.cinematic-dashboard::before {
         content: "";
         position: fixed;
         inset: 0;
-        z-index: 0;
+        z-index: -1;
         pointer-events: none;
         background:
-            linear-gradient(180deg, rgba(3,6,8,.52), rgba(3,6,8,.68)),
+            linear-gradient(180deg, rgba(6,14,16,.48), rgba(6,14,16,.7)),
             url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=2000&q=85') center / cover no-repeat;
     }
 
+    .cinematic-dashboard .container { max-width: 1440px; }
+
     .cinematic-dashboard .navbar {
         position: relative;
-        z-index: 4;
-        background: rgba(3, 6, 8, .72) !important;
-        border-bottom-color: rgba(176, 141, 87, .65);
-        backdrop-filter: blur(14px);
-    }
-
-    .cinematic-dashboard .navbar .navbar-brand,
-    .cinematic-dashboard .navbar .nav-link,
-    .cinematic-dashboard .navbar .navbar-text { color: #f5f2ed !important; }
-
-    .cinematic-dashboard .container {
-        position: relative;
-        z-index: 2;
-    }
-
-    #hotel-bronze-stage {
-        opacity: .24;
-    }
-
-    .cinematic-grid {
-        position: fixed;
         z-index: 1;
-        inset: 0 40px;
-        pointer-events: none;
-        border-left: 1px solid rgba(255,255,255,.035);
-        border-right: 1px solid rgba(255,255,255,.035);
-        background: linear-gradient(90deg, transparent calc(50% - .5px), rgba(255,255,255,.025) 50%, transparent calc(50% + .5px));
     }
 
-    .cinematic-dashboard .container > .alert {
-        position: relative;
-        z-index: 3;
-        background: rgba(15, 25, 28, .9);
-        color: #f5f2ed;
-        border-color: rgba(176, 141, 87, .5);
-    }
-
-    .dash {
-        --pine: #0e171a;
-        --pine-deep: #060b0d;
-        --brass: #c49a5a;
-        --brass-dark: #d7b477;
-        --ivory: rgba(255,255,255,.055);
-        --ink: #f5f2ed;
+    .hotel-dashboard {
+        --blue: #4a96f5;
+        --blue-dark: #327edc;
+        --blue-light: rgba(74, 150, 245, .14);
+        --orange: #ff6b35;
+        --ink: #f3e7d2;
         --muted: #a9b5b6;
-        --line: rgba(224,232,236,.15);
-        color: var(--ink);
+        --line: rgba(224, 232, 236, .15);
+        color: #e7e9e7;
+        font-family: 'Figtree', system-ui, sans-serif;
+        padding-bottom: 1.5rem;
     }
 
-    .dash-hero {
-        border: 1px solid rgba(208,170,112,.24);
-        background: rgba(8, 14, 16, .18);
-        backdrop-filter: blur(2px);
-        box-shadow: 0 20px 55px -38px rgba(0,0,0,.72);
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2.08fr) minmax(270px, .92fr);
+        align-items: start;
+        gap: 1rem;
     }
 
-    .hero-slides {
-        background-color: #0e171a;
-    }
+    .dashboard-main,
+    .dashboard-sidebar { min-width: 0; display: grid; gap: 1rem; align-content: start; }
 
-    .dash-hero::after {
-        background:
-            linear-gradient(90deg, rgba(4,8,10,.82) 0%, rgba(10,18,21,.52) 58%, rgba(7,15,20,.3) 100%),
-            linear-gradient(180deg, rgba(4,8,10,.08) 15%, rgba(4,8,10,.68) 100%);
-    }
-
-    .hero-slide { display: block; }
-    .hero-copy { position: relative; z-index: 1; }
-    .hero-date { text-transform: uppercase; letter-spacing: .16em; font-size: .72rem; color: #d5bd98; }
-    .hero-title, .hero-chip strong, .stat-value, .panel-card-head, .revenue-panel .amount {
-        font-family: 'Italiana', Georgia, serif;
-    }
-    .hero-title { font-size: clamp(2.5rem, 5vw, 4.5rem); letter-spacing: .01em; }
-    .hero-text, .hero-chip span, .stat-label, .revenue-panel .label { color: #c1cbca; }
-    .hero-chip, .hero-btn-ghost {
-        background: rgba(255,255,255,.07);
-        border-color: rgba(255,255,255,.2);
-    }
-    .hero-btn-primary { color: #101312; }
-    .revenue-panel {
-        border: 1px solid rgba(208,170,112,.26);
-        background:
-            linear-gradient(145deg, rgba(20,31,34,.74), rgba(7,13,16,.84)),
-            url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80') center / cover;
-    }
-    .stat-grid, .panel-card {
-        background: rgba(8,14,16,.7);
-        border-color: var(--line);
-        box-shadow: 0 18px 50px -35px rgba(0,0,0,.9);
+    .dashboard-card {
+        background: rgba(8, 14, 16, .78);
+        border: 1px solid rgba(208, 170, 112, .24);
+        border-radius: 12px;
+        box-shadow: 0 18px 50px -35px rgba(0, 0, 0, .8);
         backdrop-filter: blur(8px);
+        min-width: 0;
     }
-    .stat-cell { border-color: var(--line); }
-    .stat-cell:hover { background: rgba(196,154,90,.09); }
-    .stat-value, .panel-card-head { color: #f3e7d2; }
-    .dash .table { --bs-table-bg: transparent; --bs-table-color: #e7e9e7; --bs-table-hover-color: #fff; --bs-table-hover-bg: rgba(196,154,90,.08); }
-    .dash .table thead th { background: rgba(255,255,255,.045); color: #c0b49f; border-color: var(--line); }
-    .dash .table tbody td { color: #e7e9e7; border-color: var(--line); }
-    .dash .table tbody tr:last-child td { border-bottom-color: transparent; }
-    .booking-id { color: #d7b477; }
-    .empty-state { color: #a9b5b6 !important; }
-    .text-muted { color: #a9b5b6 !important; }
 
+    .dashboard-card-heading {
+        min-height: 42px;
+        padding: .8rem 1rem .25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+    }
+
+    .dashboard-card-heading h2 {
+        margin: 0;
+        color: var(--ink);
+        font-size: .98rem;
+        font-weight: 700;
+        letter-spacing: -.02em;
+    }
+
+    .dashboard-card-heading a,
+    .dashboard-link {
+        color: var(--blue);
+        font-size: .76rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+    .dashboard-card-heading a:hover,
+    .dashboard-link:hover { color: var(--blue-dark); }
+
+    .heading-tools { display: flex; align-items: center; gap: .45rem; color: #9aa2ab; font-size: .72rem; }
+    .heading-tools label { margin: 0; white-space: nowrap; }
+    .heading-tools select {
+        border: 0;
+        border-radius: 6px;
+        background: var(--blue-light);
+        color: var(--blue-dark);
+        padding: .32rem .55rem;
+        font: inherit;
+        outline-color: var(--blue);
+        cursor: pointer;
+    }
+
+    .room-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .7rem;
+        padding: .35rem .7rem .75rem;
+    }
+
+    .room-type-card {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid #eff1f4;
+        border-radius: 10px;
+        padding: .45rem;
+        transition: box-shadow .18s ease, transform .18s ease;
+    }
+    .room-type-card:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(35, 56, 76, .09); }
+
+    .room-type-image {
+        position: relative;
+        overflow: hidden;
+        border-radius: 7px;
+        height: 100px;
+        background: #e8f1f8;
+    }
+    .room-type-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .room-type-capacity {
+        position: absolute;
+        top: .4rem;
+        right: .4rem;
+        padding: .18rem .45rem;
+        border-radius: 20px;
+        background: #fff;
+        color: #4b5560;
+        font-size: .65rem;
+        font-weight: 700;
+        box-shadow: 0 1px 5px rgba(0,0,0,.1);
+    }
+    .room-type-card h3 {
+        overflow: hidden;
+        margin: .48rem 0 .1rem;
+        color: #222931;
+        font-size: .8rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .room-type-subtitle { color: var(--muted); font-size: .69rem; }
+    .room-type-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .3rem;
+        margin-top: .48rem;
+    }
+    .room-type-price { color: var(--orange); font-size: .81rem; font-weight: 700; white-space: nowrap; }
+    .room-type-price small { color: #a7adb3; font-size: .67rem; font-weight: 400; }
+    .small-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 5px;
+        background: var(--blue);
+        color: #fff;
+        padding: .32rem .55rem;
+        font-size: .66rem;
+        font-weight: 600;
+        line-height: 1.25;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .small-action:hover { background: var(--blue-dark); color: #fff; }
+
+    .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .overview-card { min-height: 225px; }
+    .icon-button {
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border: 0;
+        border-radius: 5px;
+        background: #eef6fd;
+        color: #6d849a;
+        font-size: .85rem;
+        line-height: 1;
+        text-decoration: none;
+        transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+    .icon-button:hover,
+    .icon-button:focus-visible { background: rgba(176, 141, 87, .22); color: #f3e7d2; transform: translateY(-1px); }
+    .icon-button:focus-visible,
+    .calendar-controls a:focus-visible,
+    .small-action:focus-visible { outline: 2px solid #d7b477; outline-offset: 2px; }
+
+    .occupancy-overview { padding: .5rem 1rem .85rem; }
+    .occupancy-chart {
+        width: 142px;
+        height: 142px;
+        margin: .15rem auto .7rem;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: conic-gradient(var(--blue) var(--occupancy), #e6f2fd 0);
+        transform: rotate(-130deg);
+        color: inherit;
+        text-decoration: none;
+        transition: filter .18s ease, transform .18s ease;
+    }
+    a.occupancy-chart:hover { filter: brightness(1.12); transform: rotate(-130deg) scale(1.035); }
+    a.occupancy-chart:focus-visible { outline: 2px solid #d7b477; outline-offset: 4px; }
+    .occupancy-chart::before {
+        content: "";
+        grid-area: 1 / 1;
+        width: 114px;
+        height: 114px;
+        border-radius: 50%;
+        background: #fff;
+    }
+    .occupancy-chart-content {
+        grid-area: 1 / 1;
+        z-index: 1;
+        transform: rotate(130deg);
+        text-align: center;
+    }
+    .occupancy-chart-content strong { display: block; font-size: 1.4rem; line-height: 1.2; }
+    .occupancy-chart-content span { color: var(--muted); font-size: .68rem; }
+    .occupancy-legend { display: flex; justify-content: space-around; gap: .5rem; }
+    .occupancy-legend div { padding-left: .5rem; border-left: 2px solid var(--blue); }
+    .occupancy-legend a {
+        display: block;
+        border-radius: 3px;
+        color: inherit;
+        text-decoration: none;
+        transition: transform .18s ease, background .18s ease;
+    }
+    .occupancy-legend a:hover { transform: translateY(-2px); }
+    .occupancy-legend a:focus-visible { outline: 2px solid #d7b477; outline-offset: 3px; }
+    .occupancy-legend div:first-child { border-color: #a9d2fa; }
+    .occupancy-legend div:last-child { border-color: #d7e9f8; }
+    .occupancy-legend strong { display: block; font-size: .72rem; font-weight: 600; }
+    .occupancy-legend span { color: var(--muted); font-size: .63rem; }
+
+    .room-breakdown { padding: .25rem .8rem .75rem; }
+    .room-breakdown-total {
+        position: relative;
+        margin-bottom: .65rem;
+        padding: .65rem .7rem;
+        border-radius: 7px;
+        background: var(--blue-light);
+    }
+    .room-breakdown-total strong { display: block; color: var(--orange); font-size: 1.08rem; }
+    .room-breakdown-total span { color: var(--muted); font-size: .66rem; }
+    .room-breakdown-total i {
+        color: var(--blue);
+        font-size: 1.2rem;
+    }
+    .guest-total-link {
+        position: absolute;
+        top: 50%;
+        right: .7rem;
+        display: grid;
+        place-items: center;
+        color: var(--blue);
+        text-decoration: none;
+        transform: translateY(-50%);
+        transition: color .18s ease, transform .18s ease;
+    }
+    .guest-total-link:hover { color: #d7b477; transform: translateY(-50%) translateX(2px); }
+    .guest-total-link:focus-visible { outline: 2px solid #d7b477; outline-offset: 3px; border-radius: 50%; }
+    .room-breakdown-row {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .5rem;
+        padding: .34rem 0;
+    }
+    .room-breakdown-thumb { width: 30px; height: 30px; border-radius: 5px; object-fit: cover; }
+    .room-breakdown-info { min-width: 0; }
+    .room-breakdown-info strong {
+        display: block;
+        overflow: hidden;
+        font-size: .68rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .room-breakdown-track { height: 4px; margin-top: .23rem; overflow: hidden; border-radius: 5px; background: #f0f1f2; }
+    .room-breakdown-track span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+    .room-breakdown-value { color: #4a5057; font-size: .65rem; }
+
+    .booking-table-wrap { overflow-x: auto; }
+    .hotel-dashboard .booking-table { width: 100%; min-width: 680px; margin: 0; border-collapse: separate; border-spacing: 0; }
+    .hotel-dashboard .booking-table thead th {
+        padding: .65rem .8rem;
+        border: 0;
+        background: #eef6fd;
+        color: #75818d;
+        font-size: .64rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .hotel-dashboard .booking-table thead th:first-child { padding-left: 1rem; }
+    .hotel-dashboard .booking-table tbody td {
+        padding: .62rem .8rem;
+        border-bottom: 1px solid #f0f1f3;
+        color: #353c44;
+        font-size: .7rem;
+        white-space: nowrap;
+    }
+    .hotel-dashboard .booking-table tbody tr:last-child td { border-bottom: 0; }
+    .booking-id { color: #d7b477; font-weight: 600; text-decoration: none; }
+    .booking-id:hover { color: #f3e7d2; text-decoration: underline; }
+    .booking-guest { display: block; color: #838b94; font-size: .65rem; }
+    .empty-state { padding: 1.75rem 1rem !important; color: var(--muted) !important; text-align: center; }
+
+    .calendar-card { padding-bottom: .65rem; }
+    .calendar-controls { display: flex; align-items: center; justify-content: space-between; padding: .15rem .8rem .3rem; }
+    .calendar-controls button {
+        width: 23px;
+        height: 23px;
+        border: 0;
+        border-radius: 5px;
+        background: #eef6fd;
+        color: var(--blue);
+        line-height: 1;
+    }
+    .calendar-controls a {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        place-items: center;
+        border: 1px solid rgba(208, 170, 112, .2);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, .07);
+        color: #d7b477;
+        text-decoration: none;
+        transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+    .calendar-controls a:hover { background: #b08d57; color: #0f2429; transform: translateY(-1px); }
+    .calendar-month { display: flex; gap: .8rem; color: #5e6872; font-size: .65rem; font-weight: 600; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 .55rem; }
+    .calendar-weekday, .calendar-day {
+        position: relative;
+        display: grid;
+        min-height: 26px;
+        place-items: center;
+        color: #808994;
+        font-size: .61rem;
+    }
+    .calendar-day { color: #4c555f; }
+    .calendar-day.is-today span {
+        display: grid;
+        width: 20px;
+        height: 20px;
+        place-items: center;
+        border-radius: 6px;
+        background: var(--blue);
+        color: #fff;
+    }
+    .calendar-day.has-booking::after {
+        position: absolute;
+        bottom: 1px;
+        left: calc(50% - 2px);
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--orange);
+        content: "";
+    }
+    .calendar-day.is-today.has-booking::after { background: var(--blue-dark); }
+
+    .arrival-list, .activity-list { padding: .15rem .85rem .75rem; }
+    .arrival-item {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        gap: .55rem;
+        padding: .35rem 0;
+    }
+    .arrival-thumb {
+        width: 42px;
+        height: 42px;
+        border-radius: 7px;
+        object-fit: cover;
+    }
+    .arrival-item strong {
+        display: block;
+        overflow: hidden;
+        color: #252b32;
+        font-size: .72rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .arrival-item span { color: var(--muted); font-size: .62rem; }
+    .arrival-item .bi { margin-right: .18rem; }
+    .sidebar-empty { padding: .75rem .1rem; color: var(--muted); font-size: .72rem; }
+
+    .activity-item {
+        position: relative;
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: .55rem;
+        padding: .25rem 0 .75rem;
+    }
+    .activity-item + .activity-item { padding-top: .65rem; }
+    .activity-icon {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--blue);
+        color: #fff;
+        font-size: .65rem;
+    }
+    .activity-item p { margin: 0; color: #515963; font-size: .69rem; line-height: 1.45; }
+    .activity-item strong { color: #252b32; font-weight: 600; }
+    .activity-item time { display: block; margin-top: .25rem; color: var(--muted); font-size: .6rem; }
+    .dashboard-fade { animation: dashboardFade .45s ease both; }
+    @keyframes dashboardFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 991.98px) {
+        .dashboard-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: .75rem; }
+        .overview-grid { gap: .75rem; }
+        .dashboard-main, .dashboard-sidebar { gap: .75rem; }
+        .room-type-image { height: 85px; }
+    }
     @media (max-width: 767.98px) {
-        .cinematic-grid { inset-inline: 20px; opacity: .35; }
-        #hotel-bronze-stage { opacity: .36; }
-        .stat-grid, .panel-card { background: rgba(8,14,16,.78); }
+        .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+        .dashboard-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+        .calendar-card { grid-column: 1 / -1; }
+    }
+    @media (max-width: 575.98px) {
+        .cinematic-dashboard .container { padding-right: .75rem; padding-left: .75rem; }
+        .dashboard-card-heading { padding-right: .8rem; padding-left: .8rem; }
+        .room-type-grid { grid-template-columns: 1fr; }
+        .room-type-card { display: grid; grid-template-columns: 38% minmax(0, 1fr); align-items: center; gap: .6rem; }
+        .room-type-image { grid-row: span 3; height: 95px; }
+        .room-type-card h3 { margin-top: 0; }
+        .room-type-footer { margin-top: .15rem; }
+        .overview-grid { grid-template-columns: 1fr; }
+        .overview-card { min-height: auto; }
+        .occupancy-chart { width: 132px; height: 132px; }
+        .occupancy-chart::before { width: 106px; height: 106px; }
+        .dashboard-sidebar { grid-template-columns: 1fr; }
+        .calendar-card { grid-column: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .hotel-dashboard *, .hotel-dashboard *::before, .hotel-dashboard *::after {
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: .01ms !important;
+        }
     }
 
-    @media (max-width: 575.98px) {
-        .dash-hero { border-radius: 18px; }
-        .hero-actions { width: 100%; }
-        .hero-btn { flex: 1 1 auto; text-align: center; padding-inline: .8rem; }
-        .hero-chips { width: 100%; gap: .5rem; }
-        .hero-chip { flex: 1 1 calc(50% - .5rem); padding: .7rem .8rem; }
-        .stat-cell { padding: 1.15rem; }
-        .stat-value { font-size: 2rem; }
-        .revenue-panel { min-height: 220px; padding: 1.5rem; }
-        .panel-card-head { padding: 1rem 1.1rem; }
-        .dash .table thead th,
-        .dash .table tbody td { padding-inline: 1rem; }
+    .dashboard-card-heading h2,
+    .room-type-card h3,
+    .room-breakdown-info strong,
+    .arrival-item strong,
+    .activity-item strong { color: #f3e7d2; }
+
+    .dashboard-card-heading a,
+    .dashboard-link { color: #d7b477; }
+    .dashboard-card-heading a:hover,
+    .dashboard-link:hover { color: #e8c790; }
+
+    .heading-tools { color: #a9b5b6; }
+    .heading-tools select,
+    .icon-button,
+    .calendar-controls button {
+        border: 1px solid rgba(208, 170, 112, .2);
+        background: rgba(255, 255, 255, .07);
+        color: #d7b477;
     }
+
+    .room-type-card {
+        border-color: rgba(224, 232, 236, .15);
+        background: rgba(4, 8, 10, .34);
+    }
+    .room-type-image { background: #17333a; }
+    .room-type-capacity {
+        background: rgba(8, 14, 16, .88);
+        color: #f3e7d2;
+    }
+    .room-type-subtitle,
+    .room-type-price small,
+    .occupancy-legend span,
+    .room-breakdown-total span,
+    .arrival-item span,
+    .activity-item time,
+    .sidebar-empty { color: #a9b5b6; }
+    .room-type-price { color: #ff9a64; }
+    .small-action {
+        border: 1px solid rgba(208, 170, 112, .55);
+        background: #b08d57;
+        color: #0f2429;
+    }
+    .small-action:hover { background: #c19d66; color: #0f2429; }
+    .room-type-card:hover { border-color: rgba(208, 170, 112, .4); }
+
+    .occupancy-chart::before { background: #0c171a; }
+    .occupancy-chart-content strong,
+    .occupancy-legend strong { color: #f5f2ed; }
+    .occupancy-chart-content span { color: #a9b5b6; }
+    .occupancy-legend div:first-child { border-color: #a9d2fa; }
+    .occupancy-legend div:nth-child(2) { border-color: #4a96f5; }
+    .occupancy-legend div:last-child { border-color: #d7b477; }
+
+    .room-breakdown-total { background: rgba(74, 150, 245, .12); }
+    .room-breakdown-track { background: rgba(255, 255, 255, .12); }
+    .room-breakdown-value { color: #d7d9d8; }
+    .hotel-dashboard .booking-table thead th {
+        background: rgba(255, 255, 255, .055);
+        color: #c0b49f;
+    }
+    .hotel-dashboard .booking-table tbody td { color: #e7e9e7; }
+    .hotel-dashboard .booking-table tbody tr:hover > * {
+        --bs-table-bg-state: rgba(196, 154, 90, .08);
+        color: #fff;
+    }
+    .booking-id { color: #d7b477; }
+    .booking-guest { color: #a9b5b6; }
+    .calendar-weekday { color: #a9b5b6; }
+    .calendar-day { color: #e0e5e3; }
+    .calendar-day.is-today span { background: #b08d57; color: #0f2429; }
+    .calendar-day.is-today.has-booking::after { background: #f3e7d2; }
+    .activity-item p { color: #c1cbca; }
+    .activity-item strong { color: #f3e7d2; }
+    .text-muted { color: #a9b5b6 !important; }
+    .empty-state { color: #a9b5b6 !important; }
 </style>
 
-<div class="dash">
-    <div class="cinematic-grid" aria-hidden="true"></div>
-    @php
-        $hour = now()->hour;
-        $greeting = $hour < 12 ? 'morning' : ($hour < 18 ? 'afternoon' : 'evening');
-        $firstName = auth()->check() ? \Illuminate\Support\Str::before(auth()->user()->name, ' ') : null;
-    @endphp
-
-    <header class="dash-hero reveal" style="--i:0">
-        <div class="hero-slides" aria-hidden="true">
-            <div class="hero-slide"></div>
-            <div class="hero-slide"></div>
-            <div class="hero-slide"></div>
-        </div>
-
-        <div class="hero-top">
-            <div class="hero-copy">
-                <div class="hero-date">{{ now()->format('l, F j, Y') }}</div>
-                <div class="dash-rule"></div>
-                <h1 class="hero-title">Good {{ $greeting }}{{ $firstName ? ', '.$firstName : '' }}</h1>
-                <p class="hero-text">{{ $occupied }} of {{ $rooms }} rooms are occupied and {{ $available }} are ready for new guests.</p>
-            </div>
-
-            <div class="hero-actions">
-                @if (Route::has('bookings.create'))
-                    <a href="{{ route('bookings.create') }}" class="hero-btn hero-btn-primary">New booking</a>
-                @endif
-                @if (Route::has('guests.create'))
-                    <a href="{{ route('guests.create') }}" class="hero-btn hero-btn-ghost">Add guest</a>
-                @endif
-                @if (Route::has('rooms.index'))
-                    <a href="{{ route('rooms.index') }}" class="hero-btn hero-btn-ghost">Manage rooms</a>
-                @endif
-            </div>
-        </div>
-
-        <div class="hero-bottom">
-            <div class="hero-chips">
-                <div class="hero-chip"><strong>{{ $available }}</strong><span>Rooms available</span></div>
-                <div class="hero-chip"><strong>{{ $occupied }}</strong><span>Rooms occupied</span></div>
-                <div class="hero-chip"><strong>{{ $bookings }}</strong><span>Total bookings</span></div>
-            </div>
-            <div class="hero-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        </div>
-    </header>
-
-    <div class="row g-4 mb-4">
-        <div class="col-lg-5 reveal" style="--i:2">
-            <div class="revenue-panel">
-                <div>
-                    <div class="label">Total revenue</div>
-                    <p class="amount">${{ number_format($revenue, 2) }}</p>
+<main class="hotel-dashboard dashboard-fade">
+    <div class="dashboard-grid">
+        <div class="dashboard-main">
+            <section class="dashboard-card" aria-labelledby="room-types-heading">
+                <div class="dashboard-card-heading">
+                    <h2 id="room-types-heading">Room Types</h2>
+                    <form class="heading-tools" method="GET" action="{{ route('dashboard') }}">
+                        <input type="hidden" name="month" value="{{ $monthStart->format('Y-m') }}">
+                        <label for="room-type-sort">Sort by:</label>
+                        <select id="room-type-sort" name="sort" aria-label="Sort room types" onchange="this.form.submit()">
+                            <option value="price_asc" @selected($roomTypeSort === 'price_asc')>Price: low to high</option>
+                            <option value="price_desc" @selected($roomTypeSort === 'price_desc')>Price: high to low</option>
+                            <option value="rooms_desc" @selected($roomTypeSort === 'rooms_desc')>Most rooms</option>
+                            <option value="name" @selected($roomTypeSort === 'name')>Name</option>
+                        </select>
+                    </form>
                 </div>
-                <div>
-                    <div class="occupancy-head">
-                        <span>Occupancy</span>
-                        <span>{{ $occupied }} of {{ $rooms }} rooms &middot; {{ $occupancy }}%</span>
-                    </div>
-                    <div class="occupancy-track" role="progressbar" aria-label="Room occupancy"
-                         aria-valuenow="{{ $occupancy }}" aria-valuemin="0" aria-valuemax="100">
-                        <div class="occupancy-fill" style="width: {{ $occupancy }}%"></div>
-                    </div>
+                <div class="room-type-grid">
+                    @forelse ($roomTypes as $index => $roomType)
+                        <article class="room-type-card">
+                            <div class="room-type-image">
+                                <img src="{{ $roomTypeImages[$index % count($roomTypeImages)] }}" alt="" loading="lazy">
+                                <span class="room-type-capacity"><i class="bi bi-people-fill"></i> {{ $roomType->capacity }}</span>
+                            </div>
+                            <h3>{{ $roomType->type_name }}</h3>
+                            <div class="room-type-subtitle">{{ $roomType->rooms_count }} {{ \Illuminate\Support\Str::plural('room', $roomType->rooms_count) }} · up to {{ $roomType->capacity }} {{ \Illuminate\Support\Str::plural('guest', $roomType->capacity) }}</div>
+                            <div class="room-type-footer">
+                                <span class="room-type-price">${{ number_format($roomType->price_per_night, 0) }}<small>/night</small></span>
+                                <a class="small-action" href="{{ route('room-types.index') }}">Manage</a>
+                            </div>
+                        </article>
+                    @empty
+                        <p class="sidebar-empty">Add room types to see them here.</p>
+                    @endforelse
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="col-lg-7 reveal" style="--i:3">
-            <div class="stat-grid">
-                @foreach ($stats as [$label, $value])
-                    <div class="stat-cell">
-                        <div class="stat-value">{{ $value }}</div>
-                        <div class="stat-label">{{ $label }}</div>
+            <div class="overview-grid">
+                <section class="dashboard-card overview-card" aria-labelledby="occupancy-heading">
+                    <div class="dashboard-card-heading">
+                        <h2 id="occupancy-heading">Room Overview</h2>
+                        <a class="icon-button" href="{{ route('rooms.index') }}" aria-label="View all rooms" title="View all rooms"><i class="bi bi-arrow-up-right"></i></a>
                     </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+                    <div class="occupancy-overview">
+                        <a class="occupancy-chart" href="{{ route('rooms.index') }}" style="--occupancy: {{ $occupancy }}%" aria-label="View all {{ $rooms }} rooms">
+                            <div class="occupancy-chart-content">
+                                <strong>{{ number_format($rooms) }}</strong>
+                                <span>Total Rooms</span>
+                            </div>
+                        </a>
+                        <div class="occupancy-legend">
+                            <div><a href="{{ route('rooms.index', ['status' => 'available']) }}" aria-label="View {{ $available }} available rooms"><strong>{{ $available }}</strong><span>Available</span></a></div>
+                            <div><a href="{{ route('rooms.index', ['status' => 'occupied']) }}" aria-label="View {{ $occupied }} occupied rooms"><strong>{{ $occupied }}</strong><span>Occupied</span></a></div>
+                            <div><a href="{{ route('rooms.index', ['status' => 'occupied']) }}" aria-label="View occupied rooms for {{ $occupancy }} percent occupancy"><strong>{{ $occupancy }}%</strong><span>Occupancy</span></a></div>
+                        </div>
+                    </div>
+                </section>
 
-    <div class="panel-card reveal" style="--i:4">
-        <div class="panel-card-head">Recent bookings</div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>ID</th><th>Guest</th><th>Room</th><th>Check-in</th>
-                        <th>Check-out</th><th>Status</th><th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse ($recent as $b)
-                    <tr>
-                        <td class="booking-id">{{ $b->booking_id }}</td>
-                        <td>{{ $b->guest->guest_name }}</td>
-                        <td>{{ $b->room->room_number }} <small class="text-muted">({{ $b->room->roomType->type_name }})</small></td>
-                        <td>{{ $b->check_in->format('M d, Y') }}</td>
-                        <td>{{ $b->check_out->format('M d, Y') }}</td>
-                        <td>@include('bookings._status', ['status' => $b->status])</td>
-                        <td>${{ number_format($b->total_price, 2) }}</td>
-                    </tr>
-                @empty
-                    <tr><td colspan="7" class="empty-state">No bookings yet. New reservations will appear here.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
+                <section class="dashboard-card overview-card" aria-labelledby="room-mix-heading">
+                    <div class="dashboard-card-heading">
+                        <h2 id="room-mix-heading">Room Type Mix</h2>
+                        <a class="icon-button" href="{{ route('room-types.index') }}" aria-label="View all room types" title="View all room types"><i class="bi bi-arrow-up-right"></i></a>
+                    </div>
+                    <div class="room-breakdown">
+                        <div class="room-breakdown-total">
+                            <strong>{{ number_format($guests) }}</strong>
+                            <span>Total Guests</span>
+                            <a class="guest-total-link" href="{{ route('guests.index') }}" aria-label="View all guests" title="View all guests"><i class="bi bi-arrow-right-circle"></i></a>
+                        </div>
+                        @forelse ($roomTypes as $index => $roomType)
+                            @php
+                                $typeShare = $rooms > 0 ? round(($roomType->rooms_count / $rooms) * 100) : 0;
+                            @endphp
+                            <div class="room-breakdown-row">
+                                <img class="room-breakdown-thumb" src="{{ $roomTypeImages[$index % count($roomTypeImages)] }}" alt="" loading="lazy">
+                                <div class="room-breakdown-info">
+                                    <strong>{{ $roomType->type_name }}</strong>
+                                    <div class="room-breakdown-track"><span style="width: {{ $typeShare }}%"></span></div>
+                                </div>
+                                <span class="room-breakdown-value">{{ $typeShare }}%</span>
+                            </div>
+                        @empty
+                            <p class="sidebar-empty">No room type data yet.</p>
+                        @endforelse
+                    </div>
+                </section>
+            </div>
+
+            <section class="dashboard-card" aria-labelledby="booking-history-heading">
+                <div class="dashboard-card-heading">
+                    <h2 id="booking-history-heading">Booking History</h2>
+                    <a href="{{ route('bookings.index') }}">View all</a>
+                </div>
+                <div class="booking-table-wrap">
+                    <table class="table booking-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>ID / Guest</th><th>Room</th><th>Check-in</th><th>Duration</th><th>Amount</th><th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @forelse ($recent as $booking)
+                            <tr>
+                                <td><a class="booking-id" href="{{ route('bookings.edit', $booking) }}">#{{ $booking->booking_id }}</a><span class="booking-guest">{{ $booking->guest->guest_name }}</span></td>
+                                <td>{{ $booking->room->room_number }} <span class="text-muted">({{ $booking->room->roomType->type_name }})</span></td>
+                                <td>{{ $booking->check_in->format('M d, Y') }}</td>
+                                <td>{{ $booking->nights }} {{ \Illuminate\Support\Str::plural('night', $booking->nights) }}</td>
+                                <td>${{ number_format($booking->total_price, 2) }}</td>
+                                <td>@include('bookings._status', ['status' => $booking->status])</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="empty-state">No bookings yet. New reservations will appear here.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
+
+        <aside class="dashboard-sidebar">
+            <section class="dashboard-card calendar-card" aria-labelledby="calendar-heading">
+                <div class="dashboard-card-heading">
+                    <h2 id="calendar-heading">Calendar</h2>
+                    <a class="icon-button" href="{{ route('dashboard', ['month' => now()->format('Y-m'), 'sort' => $roomTypeSort]) }}" aria-label="Go to current month" title="Go to current month"><i class="bi bi-calendar-check"></i></a>
+                </div>
+                <div class="calendar-controls">
+                    <a href="{{ route('dashboard', ['month' => $monthStart->copy()->subMonth()->format('Y-m'), 'sort' => $roomTypeSort]) }}" aria-label="Previous month" title="Previous month"><i class="bi bi-chevron-left"></i></a>
+                    <div class="calendar-month"><span>{{ $monthStart->format('M') }}</span><span>{{ $monthStart->format('Y') }}</span></div>
+                    <a href="{{ route('dashboard', ['month' => $monthStart->copy()->addMonth()->format('Y-m'), 'sort' => $roomTypeSort]) }}" aria-label="Next month" title="Next month"><i class="bi bi-chevron-right"></i></a>
+                </div>
+                <div class="calendar-grid" role="grid" aria-label="{{ $monthStart->format('F Y') }}">
+                    @foreach (['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as $weekday)
+                        <span class="calendar-weekday" role="columnheader">{{ $weekday }}</span>
+                    @endforeach
+                    @for ($blank = 0; $blank < $calendarOffset; $blank++)
+                        <span class="calendar-day" role="gridcell" aria-hidden="true"></span>
+                    @endfor
+                    @for ($day = 1; $day <= $daysInMonth; $day++)
+                        <span class="calendar-day {{ $monthStart->isSameMonth(now()) && $day === now()->day ? 'is-today' : '' }} {{ in_array($day, $bookingDays, true) ? 'has-booking' : '' }}" role="gridcell" aria-label="{{ $monthStart->copy()->day($day)->format('F j') }}">
+                            <span>{{ $day }}</span>
+                        </span>
+                    @endfor
+                </div>
+            </section>
+
+            <section class="dashboard-card" aria-labelledby="arrivals-heading">
+                <div class="dashboard-card-heading">
+                    <h2 id="arrivals-heading">Upcoming Arrivals</h2>
+                    <a href="{{ route('bookings.index') }}">View all</a>
+                </div>
+                <div class="arrival-list">
+                    @forelse ($upcomingArrivals as $index => $booking)
+                        <a class="arrival-item text-decoration-none" href="{{ route('bookings.edit', $booking) }}">
+                            <img class="arrival-thumb" src="{{ $roomTypeImages[$index % count($roomTypeImages)] }}" alt="" loading="lazy">
+                            <span>
+                                <strong>{{ $booking->guest->guest_name }}</strong>
+                                <span><i class="bi bi-calendar-event"></i>{{ $booking->check_in->format('M j') }} · Room {{ $booking->room->room_number }}</span>
+                            </span>
+                        </a>
+                    @empty
+                        <p class="sidebar-empty">No upcoming arrivals scheduled.</p>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="dashboard-card" aria-labelledby="activity-heading">
+                <div class="dashboard-card-heading">
+                    <h2 id="activity-heading">Recent Activity</h2>
+                    <a class="icon-button" href="{{ route('bookings.index') }}" aria-label="View booking activity" title="View booking activity"><i class="bi bi-arrow-up-right"></i></a>
+                </div>
+                <div class="activity-list">
+                    @forelse ($recent->take(3) as $booking)
+                        <div class="activity-item">
+                            <span class="activity-icon"><i class="bi bi-calendar-check"></i></span>
+                            <div>
+                                <p><strong>{{ $booking->guest->guest_name }}</strong> · {{ ucfirst(str_replace('_', ' ', $booking->status)) }} booking for room {{ $booking->room->room_number }}.</p>
+                                <time datetime="{{ $booking->created_at->toIso8601String() }}">{{ $booking->created_at->diffForHumans() }}</time>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="sidebar-empty">Booking activity will appear here.</p>
+                    @endforelse
+                </div>
+            </section>
+        </aside>
     </div>
-</div>
+</main>
 @endsection
